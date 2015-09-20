@@ -1,0 +1,120 @@
+Reproducible Research Peer Assignment #1
+
+---
+title: "RReproducible Research: Peer Assessment 1"
+output: 
+        html_document:
+                keep_md: true
+---
+## Loading and preprocessing the data
+Load the data and Transform the date field
+```{r}
+#Load the libraries and read the data
+
+library(ggplot2)
+library(stats)
+library(lattice)
+rrData<- read.table("activity.csv", header=TRUE, sep=",")
+rrData$date <- as.Date(rrData$date) 
+```
+Histogram of the total steps per day
+```{r}
+rrData.nona<-na.exclude(rrData)
+rrData.nona.agg<- aggregate(x = rrData.nona$steps, by = list(rrData.nona$date), FUN = sum)
+hist(rrData.nona.agg$x)
+```
+
+
+## What is mean total number of steps taken per day?
+
+The mean steps per day:
+```{r}
+mean(rrData.nona.agg$x)
+```
+The median steps taken per day
+```{r}
+median(rrData.nona.agg$x)
+```
+## What is the average daily activity pattern?
+Describe the Average Daily Activity Pattern
+```{r}
+#Calculate the total number of steps each day
+rrDataBy<- aggregate(x = rrData$steps, by = list(interval=rrData$interval), FUN=mean, na.rm=TRUE)
+```
+Time Series Plot of the 5 minute Interval
+```{r}
+ggplot(rrDataBy, aes(interval, x)) + geom_line() +
+   xlab("5 Minute Interval") + ylab("Average Steps Taken across all days")
+
+max(rrDataBy$x)
+t<-which.max(rrDataBy$x)
+max_v <- rrDataBy[t,1]
+```
+The 5 minute interval containing the maximum number of steps is:
+```{r}
+max_v
+```
+
+```{r}
+na_count <- sum(is.na(rrData$steps))
+```
+The total number of NA's in the dataset:
+```{r}
+na_count
+```
+
+## Imputing missing values
+
+```{r}
+na_rep <- which(is.na(rrData$steps))
+
+# Create a vector of means
+mean_vec <- rep(mean(rrData$steps, na.rm=TRUE), times=length(na_rep))
+```
+Produce the histogram showing the total steps each day along with the mean and median
+```{r}
+rrData[na_rep, "steps"] <- mean_vec
+
+sum_data <- aggregate(rrData$steps, by=list(rrData$date), FUN=sum)
+count_steps <- tapply(rrData$steps, rrData$date, FUN=sum, na.rm=TRUE)
+# Rename the attributes
+names(sum_data) <- c("date", "total")
+
+# Compute the histogram of the total number of steps each day
+qplot(count_steps, binwidth=1000, xlab="Total Number of Steps", main="Total Number of Steps per Day no NA's")
+
+
+
+r<-mean(sum_data$total)
+h<-median(sum_data$total)
+
+```
+The mean value is
+```{r}
+r
+```
+and the median value is
+```{r}
+h
+```
+The mean value is identical to the first assignment, but the median value is slightly lower. Imputing the missing data retained the mean due to the imputation using the mean, while simultaneously the impact on the median was a very slight lowering of the median value.
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+
+processingData <- rrData
+
+endDay <- function(date) {
+        jour <- weekdays(date)
+        if (jour %in% c("Monday" , "Tuesday", "Wednesday", "Thursday", "Friday"))
+                return("weekday")
+        else if (jour %in% c("Saturday", "Sunday"))
+                return("weekend")
+}
+processingData$date <- as.Date(processingData$date)
+processingData$day <- sapply(processingData$date, FUN=endDay)
+```
+As can be seen from the graphs below, the steps for weekdays are greater in the morning, but far greater over the totallity of the day
+```{r}
+ave <- aggregate(steps ~ interval+day, data=processingData, mean)
+ggplot(ave, aes(interval, steps)) + geom_line() + facet_grid(day ~ .) + xlab("5-minute interval") + ylab("# of steps")
